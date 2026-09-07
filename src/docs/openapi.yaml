@@ -1,0 +1,1622 @@
+openapi: 3.0.3
+info:
+  title: Inventory System API
+  description: Dokumentasi RESTful API komprehensif untuk Inventory System menggunakan Express.js, Prisma ORM, dan PostgreSQL.
+  version: 1.0.0
+servers:
+  - url: /v1
+    description: Current Environment
+
+tags:
+  - name: Auth
+    description: Endpoint otentikasi, manajemen token JWT, dan pemulihan kata sandi
+  - name: Users
+    description: Pengelolaan data pengguna (Khusus Role ADMIN)
+  - name: Categories
+    description: Pengelolaan kategori barang inventaris (ADMIN & USER)
+  - name: Products
+    description: Pengelolaan produk inventaris dan stok barang (ADMIN & USER)
+  - name: Orders
+    description: Pengelolaan transaksi pemesanan barang dan pemotongan stok otomatis (Khusus Role ADMIN)
+
+paths:
+  # ============================================================================
+  # 🔑 AUTH
+  # ============================================================================
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Registrasi pengguna baru
+      description: Mendaftarkan akun pengguna baru ke sistem dan secara otomatis mengembalikan token autentikasi.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Pengguna berhasil didaftarkan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterSuccessResponse'
+        '400':
+          description: Permintaan tidak valid (validasi gagal atau email sudah digunakan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emailTaken:
+                  summary: Email sudah digunakan
+                  value:
+                    code: 400
+                    message: Email already taken
+                validationError:
+                  summary: Validasi password gagal
+                  value:
+                    code: 400
+                    message: Password must contain at least 1 letter and 1 number
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login pengguna
+      description: Melakukan otentikasi pengguna menggunakan email dan kata sandi untuk mendapatkan sepasang JWT (access token & refresh token).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessResponse'
+        '400':
+          description: Validasi format request gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                message: Require valid email format
+        '401':
+          description: Email atau kata sandi salah
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: Incorrect email or password
+
+  /auth/refresh-token:
+    post:
+      tags:
+        - Auth
+      summary: Memperbarui token akses (Refresh Token)
+      description: Menghasilkan token akses dan refresh token baru menggunakan refresh token yang masih aktif di database.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenSuccessResponse'
+        '400':
+          description: Validasi format token gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                message: Require refresh token
+        '401':
+          description: Token kedaluwarsa atau tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: Invalid session or user not found
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout pengguna
+      description: Mencabut (revoke) refresh token dari database sehingga sesi berakhir.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '204':
+          description: Logout berhasil (No Content)
+        '400':
+          description: Validasi request gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                message: Require refresh token
+        '404':
+          description: Token tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 404
+                message: Token not found
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Auth
+      summary: Permintaan reset kata sandi (Forgot Password)
+      description: Mengirim tautan/token reset kata sandi ke alamat email pengguna.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Permintaan reset password berhasil diproses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyResponse'
+              example:
+                status: 200
+                message: A link to reset your password has been sent
+                data: null
+        '400':
+          description: Format email tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                message: Require valid email format
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Auth
+      summary: Reset kata sandi pengguna
+      description: Memperbarui kata sandi pengguna menggunakan token reset password yang sah dan belum kedaluwarsa.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Kata sandi berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyResponse'
+              example:
+                status: 200
+                message: Reset password success
+                data: null
+        '400':
+          description: Validasi token atau password gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                message: Password must contain at least 1 letter and 1 number
+        '401':
+          description: Token tidak valid atau sudah kedaluwarsa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: Invalid or expired token
+
+  # ============================================================================
+  # 👤 USERS
+  # ============================================================================
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Mendapatkan daftar pengguna terpaginasi
+      description: Mengambil daftar pengguna dengan dukungan filter nama, paginasi, dan pengurutan (Khusus ADMIN).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: name
+          in: query
+          description: Filter berdasarkan nama pengguna
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortByParam'
+      responses:
+        '200':
+          description: Berhasil mengambil data pengguna
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUsersResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Users
+      summary: Membuat pengguna baru (Admin)
+      description: Menambahkan akun pengguna baru ke sistem melalui hak akses ADMIN.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Pengguna berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Mendapatkan detail pengguna berdasarkan ID
+      description: Mengambil informasi lengkap seorang pengguna berdasarkan UUID (Khusus ADMIN).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID Pengguna
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Berhasil mendapatkan data pengguna
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    patch:
+      tags:
+        - Users
+      summary: Memperbarui data pengguna secara parsial
+      description: Mengubah informasi nama, email, password, atau role pengguna (Khusus ADMIN).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID Pengguna
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Pengguna berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Users
+      summary: Menghapus pengguna
+      description: Menghapus akun pengguna dari database berdasarkan ID (Khusus ADMIN).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID Pengguna
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Pengguna berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyResponse'
+              example:
+                status: 200
+                message: Delete user success
+                data: null
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ============================================================================
+  # 🏷️ CATEGORIES
+  # ============================================================================
+  /categories:
+    get:
+      tags:
+        - Categories
+      summary: Mendapatkan daftar kategori barang
+      description: Mengambil daftar kategori inventaris dengan dukungan pencarian nama, paginasi, dan sorting (ADMIN & USER).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: name
+          in: query
+          description: Filter nama kategori
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortByParam'
+      responses:
+        '200':
+          description: Berhasil mengambil daftar kategori
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCategoriesResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Categories
+      summary: Membuat kategori baru
+      description: Menambahkan jenis atau kelompok barang baru ke inventaris (ADMIN & USER).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: Kategori berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /categories/{id}:
+    get:
+      tags:
+        - Categories
+      summary: Mendapatkan detail kategori berdasarkan ID
+      description: Mengambil detail nama dan timestamp kategori berdasarkan UUID (ADMIN & USER).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID Kategori
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Berhasil mendapatkan detail kategori
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    patch:
+      tags:
+        - Categories
+      summary: Memperbarui nama kategori
+      description: Mengubah nama kategori barang inventaris (ADMIN & USER).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID Kategori
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: Kategori berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Categories
+      summary: Menghapus kategori
+      description: Menghapus kategori dari sistem. Operasi akan ditolak jika masih terdapat produk yang terhubung ke kategori ini (ADMIN & USER).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID Kategori
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Kategori berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyResponse'
+              example:
+                status: 200
+                message: Delete category success
+                data: null
+        '400':
+          description: Kategori tidak dapat dihapus karena masih digunakan produk
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                message: Foreign key constraint failed: categoryId
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ============================================================================
+  # 📦 PRODUCTS
+  # ============================================================================
+  /products:
+    get:
+      tags:
+        - Products
+      summary: Mendapatkan daftar produk inventaris terpaginasi
+      description: Mengambil daftar produk dengan dukungan filter nama produk, filter kategori, paginasi, dan pengurutan (ADMIN & USER).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: name
+          in: query
+          description: Filter nama produk
+          schema:
+            type: string
+        - name: category
+          in: query
+          description: Filter nama kategori produk
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortByParam'
+      responses:
+        '200':
+          description: Berhasil mengambil daftar produk
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProductsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Products
+      summary: Menambahkan produk baru ke inventaris
+      description: Menambahkan barang baru beserta harga, jumlah stok, dan referensi kategori. User pembuat akan otomatis dicatat dari token JWT (ADMIN & USER).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Produk berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /products/{id}:
+    get:
+      tags:
+        - Products
+      summary: Mendapatkan detail produk berdasarkan ID
+      description: Mengambil data rinci produk termasuk harga, stok, dan relasi kategori (ADMIN & USER).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID Produk
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Berhasil mendapatkan data produk
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    patch:
+      tags:
+        - Products
+      summary: Memperbarui produk secara parsial
+      description: Mengubah atribut nama, deskripsi, harga, jumlah stok, atau kategori produk (ADMIN & USER).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID Produk
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      responses:
+        '200':
+          description: Produk berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Products
+      summary: Menghapus produk
+      description: Menghapus produk dari sistem inventaris (ADMIN & USER).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID Produk
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Produk berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyResponse'
+              example:
+                status: 200
+                message: Delete product success
+                data: null
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ============================================================================
+  # 🛒 ORDERS
+  # ============================================================================
+  /orders:
+    get:
+      tags:
+        - Orders
+      summary: Mendapatkan daftar pesanan terpaginasi
+      description: Mengambil seluruh riwayat pesanan pelanggan beserta rincian item pesanan (Khusus ADMIN).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: name
+          in: query
+          description: Filter berdasarkan nama pelanggan (customerName)
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortByParam'
+      responses:
+        '200':
+          description: Berhasil mengambil daftar pesanan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrdersResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Orders
+      summary: Membuat pesanan baru
+      description: Mencatat transaksi pemesanan. Stok produk akan berkurang secara otomatis dan atomik melalui database transaction. Status awal order adalah COMPLETED (Khusus ADMIN).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Pesanan berhasil dibuat dan stok produk berhasil dikurangi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          description: Stok tidak cukup atau terdapat duplikasi produk dalam item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                stockError:
+                  summary: Stok tidak mencukupi
+                  value:
+                    code: 400
+                    message: 'Not enough stock for "Laptop Gaming Pro". Only 0 remaining'
+                duplicateProduct:
+                  summary: Duplikasi produk dalam items
+                  value:
+                    code: 400
+                    message: Duplicate product detected
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Salah satu produk tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 404
+                message: Product with id p1a2b3c4-xxxx-xxxx does not exist
+
+  /orders/{id}:
+    get:
+      tags:
+        - Orders
+      summary: Mendapatkan detail pesanan berdasarkan ID
+      description: Mengambil data transaksi pesanan beserta item barang yang dipesan (Khusus ADMIN).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID Pesanan (Order ID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Berhasil mendapatkan rincian pesanan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    patch:
+      tags:
+        - Orders
+      summary: Memperbarui pesanan (status, customer, atau items)
+      description: Memperbarui status pesanan (PENDING, COMPLETED, CANCELLED) atau isi pesanan. Jika items diubah, stok lama akan dikembalikan lalu stok baru dikurangi (Khusus ADMIN).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID Pesanan (Order ID)
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderRequest'
+      responses:
+        '200':
+          description: Pesanan berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Orders
+      summary: Menghapus pesanan
+      description: Menghapus riwayat transaksi pesanan (Khusus ADMIN).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID Pesanan (Order ID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Pesanan berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyResponse'
+              example:
+                status: 200
+                message: Delete order success
+                data: null
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+# ==============================================================================
+# 🧩 COMPONENTS
+# ==============================================================================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Masukkan token akses JWT dengan format `Bearer <token>`
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Nomor halaman (default 1)
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+    LimitParam:
+      name: limit
+      in: query
+      description: Jumlah data per halaman (default 10, max 100)
+      schema:
+        type: integer
+        default: 10
+        minimum: 1
+        maximum: 100
+    SortByParam:
+      name: sortBy
+      in: query
+      description: Format pengurutan `field:asc` atau `field:desc` (contoh `createdAt:desc`)
+      schema:
+        type: string
+        example: createdAt:desc
+
+  responses:
+    UnauthorizedError:
+      description: Otentikasi gagal atau token tidak disertakan/kedaluwarsa
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 401
+            message: Please authenticate.
+    ForbiddenError:
+      description: Otorisasi gagal, pengguna tidak memiliki hak akses yang mencukupi
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 403
+            message: Forbidden
+    NotFoundError:
+      description: Sumber daya yang diminta tidak ditemukan
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 404
+            message: Record not found
+    BadRequestError:
+      description: Permintaan tidak valid karena kegagalan validasi atau aturan bisnis
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 400
+            message: Bad request
+
+  schemas:
+    # ------------------ ENUMS & COMMON ------------------
+    Role:
+      type: string
+      enum: [ADMIN, USER]
+      example: USER
+
+    OrderStatus:
+      type: string
+      enum: [PENDING, COMPLETED, CANCELLED]
+      example: COMPLETED
+
+    TokenItem:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        expires:
+          type: string
+          format: date-time
+          example: '2026-07-28T12:30:00.000Z'
+
+    Tokens:
+      type: object
+      properties:
+        access:
+          $ref: '#/components/schemas/TokenItem'
+        refresh:
+          $ref: '#/components/schemas/TokenItem'
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Penjelasan detail kesalahan
+        stack:
+          type: string
+          nullable: true
+          description: Hanya ditampilkan pada mode development
+
+    MessageOnlyResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Operasi berhasil
+        data:
+          type: object
+          nullable: true
+          example: null
+
+    # ------------------ USER MODELS & PAYLOADS ------------------
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: c1f7a4b0-3d8e-4a61-89bc-123456789abc
+        name:
+          type: string
+          example: Budi Santoso
+        email:
+          type: string
+          format: email
+          example: budi@example.com
+        role:
+          $ref: '#/components/schemas/Role'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-07-28T12:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-07-28T12:00:00.000Z'
+
+    RegisterRequest:
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: Budi Santoso
+        email:
+          type: string
+          format: email
+          example: budi@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Minimal 8 karakter, wajib mengandung 1 huruf dan 1 angka.
+          example: Password123
+        role:
+          $ref: '#/components/schemas/Role'
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: budi@example.com
+        password:
+          type: string
+          format: password
+          example: Password123
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    ForgotPasswordRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: budi@example.com
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - token
+        - newPassword
+      properties:
+        token:
+          type: string
+          description: Token reset kata sandi yang dikirimkan ke email
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          description: Kata sandi baru (minimal 8 karakter, mengandung huruf dan angka)
+          example: PasswordBaru123
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: Budi Santoso Updated
+        email:
+          type: string
+          format: email
+          example: budi.updated@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: NewPassword123
+        role:
+          $ref: '#/components/schemas/Role'
+
+    RegisterSuccessResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 201
+        message:
+          type: string
+          example: Register success
+        data:
+          type: object
+          properties:
+            userCreated:
+              $ref: '#/components/schemas/User'
+            token:
+              $ref: '#/components/schemas/Tokens'
+
+    LoginSuccessResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Login success
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            tokens:
+              $ref: '#/components/schemas/Tokens'
+
+    RefreshTokenSuccessResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Refresh token success
+        data:
+          $ref: '#/components/schemas/Tokens'
+
+    UserResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Operasi pengguna berhasil
+        data:
+          $ref: '#/components/schemas/User'
+
+    PaginatedUsersResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Get users success
+        data:
+          type: object
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/User'
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 10
+            totalPages:
+              type: integer
+              example: 1
+            totalResults:
+              type: integer
+              example: 1
+
+    # ------------------ CATEGORY MODELS & PAYLOADS ------------------
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: e4d3c2b1-5678-4a90-bcde-112233445566
+        name:
+          type: string
+          example: Elektronik
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-07-28T10:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-07-28T10:00:00.000Z'
+
+    CreateCategoryRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 3
+          example: Peralatan Kantor
+
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          example: Elektronik & Gadget
+
+    CategoryResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Operasi kategori berhasil
+        data:
+          $ref: '#/components/schemas/Category'
+
+    PaginatedCategoriesResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Get categories success
+        data:
+          type: object
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/Category'
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 10
+            totalPages:
+              type: integer
+              example: 1
+            totalResults:
+              type: integer
+              example: 1
+
+    # ------------------ PRODUCT MODELS & PAYLOADS ------------------
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: p1a2b3c4-9988-7766-5544-33221100aabb
+        name:
+          type: string
+          example: Laptop Gaming Pro
+        description:
+          type: string
+          nullable: true
+          example: Laptop spec tinggi untuk inventaris kantor
+        price:
+          type: string
+          example: '15000000.00'
+        quantityInStock:
+          type: integer
+          example: 25
+        categoryId:
+          type: string
+          format: uuid
+          example: e4d3c2b1-5678-4a90-bcde-112233445566
+        userId:
+          type: string
+          format: uuid
+          example: c1f7a4b0-3d8e-4a61-89bc-123456789abc
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-07-28T11:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-07-28T11:00:00.000Z'
+
+    CreateProductRequest:
+      type: object
+      required:
+        - name
+        - price
+        - quantityInStock
+        - categoryId
+      properties:
+        name:
+          type: string
+          minLength: 3
+          example: Mouse Wireless Ergonomis
+        description:
+          type: string
+          nullable: true
+          example: Mouse tanpa kabel dengan baterai isi ulang
+        price:
+          type: number
+          minimum: 1
+          example: 250000
+        quantityInStock:
+          type: integer
+          minimum: 0
+          example: 50
+        categoryId:
+          type: string
+          format: uuid
+          example: e4d3c2b1-5678-4a90-bcde-112233445566
+
+    UpdateProductRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          example: Mouse Wireless Ergonomis (V2)
+        description:
+          type: string
+          nullable: true
+          example: Deskripsi yang diperbarui
+        price:
+          type: number
+          minimum: 1
+          example: 275000
+        quantityInStock:
+          type: integer
+          minimum: 0
+          example: 45
+        categoryId:
+          type: string
+          format: uuid
+          example: e4d3c2b1-5678-4a90-bcde-112233445566
+
+    ProductResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Operasi produk berhasil
+        data:
+          $ref: '#/components/schemas/Product'
+
+    PaginatedProductsResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Get products success
+        data:
+          type: object
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/Product'
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 10
+            totalPages:
+              type: integer
+              example: 1
+            totalResults:
+              type: integer
+              example: 1
+
+    # ------------------ ORDER MODELS & PAYLOADS ------------------
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: item-1111-2222-3333-4444
+        orderId:
+          type: string
+          format: uuid
+          example: ord-11223344-5566-7788-9900-aabbccddeeff
+        productId:
+          type: string
+          format: uuid
+          example: p1a2b3c4-9988-7766-5544-33221100aabb
+        productName:
+          type: string
+          example: Laptop Gaming Pro
+        quantity:
+          type: integer
+          example: 1
+        unitPrice:
+          type: string
+          example: '15000000.00'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-07-28T14:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-07-28T14:00:00.000Z'
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: ord-11223344-5566-7788-9900-aabbccddeeff
+        totalPrice:
+          type: string
+          example: '15250000.00'
+        customerName:
+          type: string
+          example: PT Maju Bersama
+        customerEmail:
+          type: string
+          nullable: true
+          example: procurement@majubersama.com
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        userId:
+          type: string
+          format: uuid
+          example: c1f7a4b0-3d8e-4a61-89bc-123456789abc
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-07-28T14:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-07-28T14:00:00.000Z'
+        orderItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+
+    OrderItemInput:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+          format: uuid
+          example: p1a2b3c4-9988-7766-5544-33221100aabb
+        quantity:
+          type: integer
+          minimum: 1
+          example: 1
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - customerName
+        - items
+      properties:
+        customerName:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: PT Maju Bersama
+        customerEmail:
+          type: string
+          format: email
+          nullable: true
+          example: procurement@majubersama.com
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OrderItemInput'
+
+    UpdateOrderRequest:
+      type: object
+      properties:
+        customerName:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: PT Maju Bersama
+        customerEmail:
+          type: string
+          format: email
+          nullable: true
+          example: procurement@majubersama.com
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemInput'
+
+    OrderResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Operasi pesanan berhasil
+        data:
+          $ref: '#/components/schemas/Order'
+
+    PaginatedOrdersResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Get orders success
+        data:
+          type: object
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/Order'
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 10
+            totalPages:
+              type: integer
+              example: 1
+            totalResults:
+              type: integer
+              example: 1
