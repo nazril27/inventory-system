@@ -1,6 +1,6 @@
 import httpStatus from 'http-status';
 import { ZodError } from 'zod';
-import { Prisma } from '../../generated/prisma/client.js';
+import { Prisma } from '@prisma/client';
 import config from '../config/config.js';
 import { logger } from '../config/logger.js';
 import { ApiError } from '../utils/ApiError.js';
