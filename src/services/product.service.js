@@ -2,6 +2,8 @@ import httpStatus from 'http-status';
 import { prisma } from '../../prisma/prisma.js';
 import { ApiError } from '../utils/ApiError.js';
 import { paginate } from '../utils/paginate.js';
+import { v2 as cloudinary } from 'cloudinary';
+
 
 export const queryProducts = async (filter, options) => {
   const where = {};
@@ -41,6 +43,15 @@ export const updateProduct = async (id, updateBody) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Product not found');
   }
 
+  if (updateBody.imgUrl && updateBody.imgPublicId && updateBody.imgOriginalName) {
+    if (product.imgPublicId) {
+      const cloudinaryResult = await cloudinary.uploader.destroy(product.imgPublicId);
+      if (cloudinaryResult.result !== 'ok' && cloudinaryResult.result !== 'not found') {
+        console.log('Failed to delete image from cloudinary');
+      }
+    }
+  }
+
   const updateProduct = await prisma.product.update({
     where: { id },
     data: updateBody,
@@ -54,6 +65,13 @@ export const deleteProduct = async (id) => {
 
   if (!product) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Product not found');
+  }
+
+  if (product.imgPublicId) {
+    const cloudinaryResult = await cloudinary.uploader.destroy(product.imgPublicId);
+    if (cloudinaryResult.result !== 'ok' && cloudinaryResult.result !== 'not found') {
+      console.log('Failed to delete image from cloudinary');
+    }
   }
 
   await prisma.product.deleteMany({

@@ -3,6 +3,7 @@ import { tokenTypes } from '../config/tokens.js';
 import { authService, tokenService, userService } from '../services/';
 import { ApiError } from '../utils/ApiError.js';
 import { catchAsync } from '../utils/catchAsync.js';
+import { remainingMs } from '../utils/remainingMs.js';
 
 export const register = catchAsync(async (req, res) => {
   const existingUser = await userService.getUserByEmail(req.body.email);
@@ -16,10 +17,17 @@ export const register = catchAsync(async (req, res) => {
 
   const token = await tokenService.generateAuthTokens(userCreated);
 
+  res.cookie('refreshToken', token.refresh.token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: remainingMs(token.refresh.expires),
+  });
+
   res.status(httpStatus.CREATED).json({
     status: httpStatus.CREATED,
     message: 'Register success',
-    data: { userCreated, token },
+    data: { userCreated, accessToken: token.access },
   });
 });
 
@@ -28,10 +36,17 @@ export const login = catchAsync(async (req, res) => {
   const user = await authService.loginUserWithEmailAndPassword(email, password);
   const tokens = await tokenService.generateAuthTokens(user);
 
+  res.cookie('refreshToken', tokens.refresh.token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: remainingMs(tokens.refresh.expires),
+  });
+
   res.status(httpStatus.OK).json({
     status: httpStatus.OK,
     message: 'Login success',
-    data: { user, tokens },
+    data: { user, acessToken: tokens.access },
   });
 });
 
@@ -45,6 +60,12 @@ export const logout = catchAsync(async (req, res) => {
   if (deleteToken.count === 0) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Token not found');
   }
+
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+  });
 
   res.status(httpStatus.NO_CONTENT).send();
 });

@@ -5,9 +5,14 @@ import { tokenService, userService } from './';
 
 export const loginUserWithEmailAndPassword = async (email, password) => {
   const user = await userService.getUserByEmail(email);
+
+  if (!user) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
+  }
+
   const validPassword = await bcrypt.compare(password, user.password);
 
-  if (!user || !validPassword) {
+  if (!validPassword) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
   }
 

@@ -6,9 +6,17 @@ import { pick } from '../utils/pick.js';
 
 export const createProduct = catchAsync(async (req, res) => {
   const userId = req.user.id;
-  req.body.userId = userId;
+  const imgData = {};
+  
+  if (req.file) {
+    imgData.imgUrl = req.file?.path;
+    imgData.imgPublicId = req.file?.filename;
+    imgData.imgOriginalName = req.file?.originalname;
+  }
 
-  const product = await productService.createProduct(req.body);
+  const data = { ...req.body, userId, ...imgData };
+
+  const product = await productService.createProduct(data);
 
   res.status(httpStatus.CREATED).json({
     status: httpStatus.CREATED,
@@ -45,7 +53,15 @@ export const getProductById = catchAsync(async (req, res) => {
 });
 
 export const updateProduct = catchAsync(async (req, res) => {
-  const product = await productService.updateProduct(req.params.id, req.body);
+  const data = req.body;
+
+  if (req.file) {
+    data.imgUrl = req.file?.path;
+    data.imgPublicId = req.file?.filename;
+    data.imgOriginalName = req.file?.originalname;
+  }
+
+  const product = await productService.updateProduct(req.params.id, data);
 
   res.status(httpStatus.OK).json({
     status: httpStatus.OK,

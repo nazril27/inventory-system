@@ -1,5 +1,6 @@
 import compression from 'compression';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import express from 'express';
 import { xss } from 'express-xss-sanitizer';
 import helmet from 'helmet';
@@ -36,6 +37,7 @@ app.use(
 );
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.use(express.urlencoded({ extended: true }));
 
@@ -47,6 +49,8 @@ app.use(passport.initialize());
 passport.use('jwt', jwtStrategy);
 
 app.use(cors());
+
+app.use('./uploads', express.static('uploads'));
 
 app.get('/', (_req, res) => {
   res.send('hello world');

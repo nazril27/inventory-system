@@ -18,4 +18,9 @@ export default {
     accessExpirationMinutes: Number(process.env.JWT_ACCESS_EXPIRATION_MINUTES),
     refreshExpirationDays: Number(process.env.JWT_REFRESH_EXPIRATION_DAYS),
   },
+  cloudinary: {
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  },
 };

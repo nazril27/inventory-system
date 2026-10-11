@@ -4,6 +4,7 @@ import { auth } from '../../middlewares/auth.js';
 import { authorize } from '../../middlewares/authorize.js';
 import { validate } from '../../middlewares/validate.js';
 import { productValidation, queryValidation } from '../../validations';
+import { upload } from '../../lib/cloudinaryUpload.js';
 
 const router = express.Router();
 
@@ -19,6 +20,7 @@ router
     auth(),
     authorize('ADMIN', 'USER'),
     validate(productValidation.createProduct),
+    upload.single('image'),
     productController.createProduct
   );
 
@@ -34,6 +36,7 @@ router
     auth(),
     authorize('ADMIN', 'USER'),
     validate(productValidation.updateProduct),
+    upload.single('image'),
     productController.updateProduct
   )
   .delete(
