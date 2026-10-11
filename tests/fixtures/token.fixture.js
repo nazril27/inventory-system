@@ -1,5 +1,5 @@
 import { addDays, addMinutes, subMinutes } from 'date-fns';
-import { prisma } from '../../prisma/prisma.ts';
+import { prisma } from '../../prisma/prisma.js';
 import config from '../../src/config/config.js';
 import { tokenTypes } from '../../src/config/tokens.js';
 import { tokenService } from '../../src/services/index.js';

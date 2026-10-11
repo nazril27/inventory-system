@@ -1,5 +1,5 @@
 import { faker } from '@faker-js/faker';
-import { prisma } from '../../prisma/prisma.ts';
+import { prisma } from '../../prisma/prisma.js';
 
 class Category {
   constructor() {

@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process';
 import { afterAll, beforeAll, beforeEach } from 'vitest';
-import { prisma } from '../../prisma/prisma.ts';
+import { prisma } from '../../prisma/prisma.js';
 
 const getDatabaseURL = () => {
   const url = process.env.TEST_DB_URL;

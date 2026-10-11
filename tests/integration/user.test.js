@@ -1,7 +1,7 @@
 import { faker } from '@faker-js/faker';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { prisma } from '../../prisma/prisma.ts';
+import { prisma } from '../../prisma/prisma.js';
 import { app } from '../../src/app.js';
 import { tokenFixture } from '../fixtures/index.js';
 import {

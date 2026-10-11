@@ -5,7 +5,7 @@ import { prisma } from '../../prisma/prisma.js';
 import config from '../config/config.js';
 import { tokenTypes } from '../config/tokens.js';
 import { ApiError } from '../utils/ApiError.js';
-import { userService } from './';
+import { userService } from './index.js';
 
 export const generateToken = (
   userId,

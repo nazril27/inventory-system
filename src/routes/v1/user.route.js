@@ -1,5 +1,5 @@
 import express from 'express';
-import { userController } from '../../controllers';
+import { userController } from '../../controllers/index.js';
 import { auth } from '../../middlewares/auth.js';
 import { authorize } from '../../middlewares/authorize.js';
 import { validate } from '../../middlewares/validate.js';
@@ -7,7 +7,7 @@ import {
   authValidation,
   queryValidation,
   userValidation,
-} from '../../validations';
+} from '../../validations/index.js';
 
 const router = express.Router();
 

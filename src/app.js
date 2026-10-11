@@ -13,7 +13,7 @@ import {
 } from './config/morgan.js';
 import { jwtStrategy } from './config/passport.js';
 import { errorConverter, errorHandler } from './middlewares/error.js';
-import { router } from './routes/v1/';
+import { router } from './routes/v1/index.js';
 import { ApiError } from './utils/ApiError.js';
 
 const app = express();

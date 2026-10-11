@@ -1,9 +1,9 @@
 import express from 'express';
-import { productController } from '../../controllers';
+import { productController } from '../../controllers/index.js';
 import { auth } from '../../middlewares/auth.js';
 import { authorize } from '../../middlewares/authorize.js';
 import { validate } from '../../middlewares/validate.js';
-import { productValidation, queryValidation } from '../../validations';
+import { productValidation, queryValidation } from '../../validations/index.js';
 import { upload } from '../../lib/cloudinaryUpload.js';
 
 const router = express.Router();

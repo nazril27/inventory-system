@@ -1,9 +1,9 @@
 import express from 'express';
-import { categoryController } from '../../controllers';
+import { categoryController } from '../../controllers/index.js';
 import { auth } from '../../middlewares/auth.js';
 import { authorize } from '../../middlewares/authorize.js';
 import { validate } from '../../middlewares/validate.js';
-import { categoryValidation, queryValidation } from '../../validations';
+import { categoryValidation, queryValidation } from '../../validations/index.js';
 
 const router = express.Router();
 

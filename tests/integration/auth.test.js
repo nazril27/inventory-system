@@ -1,12 +1,12 @@
 import httpStatus from 'http-status';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
-import { prisma } from '../../prisma/prisma.ts';
+import { prisma } from '../../prisma/prisma.js';
 import { app } from '../../src/app.js';
 import { auth } from '../../src/middlewares/auth.js';
 import { tokenService } from '../../src/services/index.js';
 import { ApiError } from '../../src/utils/ApiError.js';
-import { tokenFixture } from '../fixtures';
+import { tokenFixture } from '../fixtures/index.js';
 import { insertUsers, userOne } from '../fixtures/user.fixture.js';
 
 describe('Auth Routes', () => {

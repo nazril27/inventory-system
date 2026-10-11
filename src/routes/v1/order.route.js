@@ -1,9 +1,9 @@
 import express from 'express';
-import { orderController } from '../../controllers';
+import { orderController } from '../../controllers/index.js';
 import { auth } from '../../middlewares/auth.js';
 import { authorize } from '../../middlewares/authorize.js';
 import { validate } from '../../middlewares/validate.js';
-import { orderValidation, queryValidation } from '../../validations';
+import { orderValidation, queryValidation } from '../../validations/index.js';
 
 const router = express.Router();
 

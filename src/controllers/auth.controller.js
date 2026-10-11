@@ -1,6 +1,6 @@
 import httpStatus from 'http-status';
 import { tokenTypes } from '../config/tokens.js';
-import { authService, tokenService, userService } from '../services/';
+import { authService, tokenService, userService } from '../services/index.js';
 import { ApiError } from '../utils/ApiError.js';
 import { catchAsync } from '../utils/catchAsync.js';
 import { remainingMs } from '../utils/remainingMs.js';

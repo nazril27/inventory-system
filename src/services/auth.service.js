@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import httpStatus from 'http-status';
 import { ApiError } from '../utils/ApiError.js';
-import { tokenService, userService } from './';
+import { tokenService, userService } from './index.js';
 
 export const loginUserWithEmailAndPassword = async (email, password) => {
   const user = await userService.getUserByEmail(email);
