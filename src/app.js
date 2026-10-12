@@ -36,6 +36,28 @@ app.use(
   })
 );
 
+const allowedOrigins = [
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Diblokir oleh kebijakan CORS: Origin tidak diizinkan.'));
+    }
+  },
+  credentials: true,
+  method: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+
 app.use(express.json());
 app.use(cookieParser());
 
@@ -47,8 +69,6 @@ app.use(compression());
 
 app.use(passport.initialize());
 passport.use('jwt', jwtStrategy);
-
-app.use(cors());
 
 app.use('./uploads', express.static('uploads'));
 
