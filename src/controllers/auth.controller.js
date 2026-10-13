@@ -94,7 +94,7 @@ export const refresh = catchAsync(async (req, res) => {
   res.status(httpStatus.OK).json({
     status: httpStatus.OK,
     message: 'Refresh token success',
-    data: { accessToken: newTokens.access.token },
+    data: { accessToken: newTokens.access },
   });
 });
 
