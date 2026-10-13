@@ -78,10 +78,23 @@ export const refresh = catchAsync(async (req, res) => {
     tokenTypes.REFRESH
   );
 
+  res.clearCookie('refreshToken', {
+    htppOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+  });
+
+  res.cookie('refreshToken', newTokens.refresh.token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: remainingMs(newTokens.refresh.expires),
+  });
+
   res.status(httpStatus.OK).json({
     status: httpStatus.OK,
     message: 'Refresh token success',
-    data: newTokens,
+    data: { accessToken: newTokens.access.token },
   });
 });
 
